@@ -1,18 +1,25 @@
-# GDAL with ECW Support — Docker Build Guide
+# ECW-Auto
 
-This guide documents how the Dockerfile builds GDAL 3.4.1 with ERDAS ECW SDK 5.4.0 support using a **multi-stage Docker build** on Debian 12-slim.
+A Docker-based toolkit for working with **ECW geospatial imagery**. Builds a slim, optimized container with GDAL compiled from source with full ECW read support — no manual SDK installation required.
 
-## Overview
+## Features
 
-- **Base image:** `debian:12-slim`
-- **Architecture:** Multi-stage (builder → slim runtime)
-- **GDAL version:** 3.4.1 (required — versions 3.8+ need ECW SDK 5.5+)
-- **ECW SDK:** 5.4.0 Desktop Read-Only
+- **Multi-stage Docker build** — small runtime image (~1–1.5 GB) based on `debian:12-slim`
+- **GDAL 3.4.1 + ECW SDK 5.4.0** — read ECW/JP2 files out of the box
+- **Python ready** — includes `pyproj` in a virtual environment
+- **Automated SDK install** — handles the ECW license prompt and pager issues automatically
 
 ## Prerequisites
 
-- Docker Desktop installed
-- `erdas-ecw-sdk-5.4.0-linux.zip` in the same directory as the Dockerfile
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+- `erdas-ecw-sdk-5.4.0-linux.zip` placed in the same directory as the Dockerfile
+
+## Quick Start
+
+```bash
+docker build --progress=plain --no-cache -t ecw-slim .
+docker run -it -v "$(pwd)/workspace:/workspace" ecw-slim
+```
 
 ## Stage 1: Builder
 
@@ -38,6 +45,7 @@ ln -sf /bin/cat /usr/bin/more && ln -sf /bin/cat /usr/bin/less
 ```
 
 The installer is automated via an `expect` script that:
+
 1. Selects option `1` (Desktop Read-Only Redistributable)
 2. Auto-scrolls through the license (`--More--` handling)
 3. Accepts the license agreement (`yes`)
@@ -142,6 +150,7 @@ gdalinfo --formats | grep -i ecw
 ```
 
 Expected output:
+
 ```
   ECW -raster- (rw+): ERDAS Compressed Wavelets (SDK 5.4)
   JP2ECW -raster,vector- (rw+v): ERDAS JPEG2000 (SDK 5.4)
