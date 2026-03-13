@@ -105,12 +105,34 @@ A venv is created at `/opt/venv` with `pyproj` installed.
 
 ## Build & Run
 
+**PowerShell:**
+
 ```powershell
-# Build (first time use --no-cache)
+# Build
 docker build --progress=plain --no-cache -t ecw-slim . 2>&1 | Tee-Object -FilePath build.log
 
 # Run
 docker run -it --name ecw-container -v "${PWD}/workspace:/workspace" ecw-slim
+```
+
+**Bash / macOS / Linux:**
+
+```bash
+# Build
+docker build --progress=plain --no-cache -t ecw-slim . 2>&1 | tee build.log
+
+# Run
+docker run -it --name ecw-container -v "$(pwd)/workspace:/workspace" ecw-slim
+```
+
+**Command Prompt (cmd):**
+
+```cmd
+:: Build
+docker build --progress=plain --no-cache -t ecw-slim . 2>&1 > build.log
+
+:: Run
+docker run -it --name ecw-container -v "%cd%/workspace:/workspace" ecw-slim
 ```
 
 ## Verify
