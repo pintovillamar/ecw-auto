@@ -156,6 +156,42 @@ Expected output:
   JP2ECW -raster,vector- (rw+v): ERDAS JPEG2000 (SDK 5.4)
 ```
 
+## Usage — ECW to MBTiles
+
+The included `ecw_to_mbtiles.sh` script converts ECW imagery to MBTiles format. It reprojects to Web Mercator, generates tiles across zoom levels, and handles near-white border transparency.
+
+**Basic usage:**
+
+```bash
+./workspace/ecw_to_mbtiles.sh -i /workspace/input.ecw -o /workspace/output.mbtiles
+```
+
+**With options:**
+
+```bash
+./workspace/ecw_to_mbtiles.sh \
+  -i /workspace/input.ecw \
+  -o /workspace/output.mbtiles \
+  -z 10 -Z 18 \
+  -f png \
+  -n 22 \
+  -p 4
+```
+
+**Options:**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-i, --input` | Input ECW file path | *(required)* |
+| `-o, --output` | Output MBTiles file path | *(required)* |
+| `-z, --min-zoom` | Minimum zoom level | `13` |
+| `-Z, --max-zoom` | Maximum zoom level | `18` |
+| `-f, --format` | Tile format: `png` or `jpg` | `png` |
+| `-q, --quality` | JPEG quality 1–100 | `85` |
+| `-n, --near` | Near-white tolerance for transparency | `22` |
+| `-p, --processes` | Parallel processes | `4` |
+| `-g, --gdal-path` | Path to GDAL binaries | `/usr/local/bin` |
+
 ## Troubleshooting
 
 | Issue | Cause | Fix |
