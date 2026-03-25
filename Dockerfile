@@ -103,3 +103,13 @@ RUN pip install --no-cache-dir pyproj
 
 WORKDIR /workspace
 CMD ["bash"]
+
+# ==============================================================
+# TODOs (lightweight-compatible improvements)
+# ==============================================================
+# TODO: Update GDAL to 3.8.x or 3.9.x for bug fixes and performance improvements
+# TODO: Add gdal2tiles.py to support direct tile generation (small footprint)
+# TODO: Consider adding a non-root user for security (adduser --system gdal)
+# TODO: Add HEALTHCHECK instruction if using in orchestrated environments
+# TODO: Pin base image hash for reproducible builds (debian:12-slim@sha256:...)
+# TODO: Add .dockerignore to exclude unnecessary files from build context
