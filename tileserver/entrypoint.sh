@@ -108,7 +108,7 @@ inotifywait --monitor --event create --event delete --event moved_to --event mov
     # Only react to .mbtiles files
     case "$FILENAME" in
         *.mbtiles)
-            echo "[entrypoint] Detected $EVENT on $FILENAME — regenerating config..."
+            echo "[entrypoint] Detected $EVENT on $FILENAME regenerating config..."
             # Small delay to allow file writing to complete (especially for large files)
             sleep 3
             generate_config
