@@ -8,13 +8,20 @@ set -e
 INPUT_ECW=""
 OUTPUT_MBTILES=""
 MIN_ZOOM=13
-MAX_ZOOM=18
+MAX_ZOOM=19
 TILE_SIZE=256
 TILE_FORMAT="PNG"
 JPEG_QUALITY=85
 NEAR_TOL=22
 PROCESSES=4
 TEMP_DIR=""
+
+# Extent overrides (optional)
+EXTENT_NORTH=""
+EXTENT_SOUTH=""
+EXTENT_EAST=""
+EXTENT_WEST=""
+EXTENT_CRS=""
 
 GDAL_BIN="/usr/local/bin"
 
@@ -37,6 +44,14 @@ show_help() {
     echo "  -p, --processes   Parallel processes (default: 4)"
     echo "  -g, --gdal-path   Path to GDAL binaries (default: /usr/local/bin)"
     echo "  -h, --help        Show this help message"
+    echo ""
+    echo "Extent (optional, export a sub-region instead of the full raster):"
+    echo "  --extent-north    North bound (Y max)"
+    echo "  --extent-south    South bound (Y min)"
+    echo "  --extent-east     East bound (X max)"
+    echo "  --extent-west     West bound (X min)"
+    echo "  --extent-crs      CRS of the extent values (default: same as raster)."
+    echo "                    Use EPSG:4326 for lat/lon or any EPSG code."
     exit 0
 }
 
@@ -75,6 +90,11 @@ while [[ $# -gt 0 ]]; do
         -n|--near) NEAR_TOL="$2"; shift 2 ;;
         -p|--processes) PROCESSES="$2"; shift 2 ;;
         -g|--gdal-path) GDAL_BIN="$2"; shift 2 ;;
+        --extent-north) EXTENT_NORTH="$2"; shift 2 ;;
+        --extent-south) EXTENT_SOUTH="$2"; shift 2 ;;
+        --extent-east) EXTENT_EAST="$2"; shift 2 ;;
+        --extent-west) EXTENT_WEST="$2"; shift 2 ;;
+        --extent-crs) EXTENT_CRS="$2"; shift 2 ;;
         -h|--help) show_help ;;
         *) log_error "Unknown option: $1"; show_help ;;
     esac
@@ -142,9 +162,55 @@ epsg = matches[-1] if matches else '32718'
 print(f'{xmin} {ymin} {xmax} {ymax} {epsg} {width} {height}')
 ")
 
-log_info "Bounds: $XMIN, $YMIN, $XMAX, $YMAX"
+log_info "Raster bounds: $XMIN, $YMIN, $XMAX, $YMAX"
 log_info "Source CRS: EPSG:$CRS_CODE"
 log_info "Raster size: ${RASTER_WIDTH}x${RASTER_HEIGHT}"
+
+# ============== APPLY EXTENT OVERRIDES ==============
+HAS_EXTENT=false
+if [ -n "$EXTENT_NORTH" ] || [ -n "$EXTENT_SOUTH" ] || [ -n "$EXTENT_EAST" ] || [ -n "$EXTENT_WEST" ]; then
+    # All four must be provided
+    if [ -z "$EXTENT_NORTH" ] || [ -z "$EXTENT_SOUTH" ] || [ -z "$EXTENT_EAST" ] || [ -z "$EXTENT_WEST" ]; then
+        log_error "All four extent values are required (--extent-north, --extent-south, --extent-east, --extent-west)"
+        exit 1
+    fi
+    HAS_EXTENT=true
+fi
+
+if [ "$HAS_EXTENT" = true ]; then
+    # If extent CRS is specified and differs from raster CRS, reproject the extent
+    if [ -n "$EXTENT_CRS" ]; then
+        # Normalize: accept both "EPSG:4326" and "4326"
+        EXTENT_EPSG=$(echo "$EXTENT_CRS" | sed 's/^EPSG://i')
+
+        if [ "$EXTENT_EPSG" != "$CRS_CODE" ]; then
+            log_info "Reprojecting extent from EPSG:$EXTENT_EPSG to EPSG:$CRS_CODE..."
+            read -r EXTENT_WEST EXTENT_SOUTH EXTENT_EAST EXTENT_NORTH < <(python3 -c "
+from pyproj import Transformer
+t = Transformer.from_crs('EPSG:$EXTENT_EPSG', 'EPSG:$CRS_CODE', always_xy=True)
+x1, y1 = t.transform($EXTENT_WEST, $EXTENT_SOUTH)
+x2, y2 = t.transform($EXTENT_EAST, $EXTENT_NORTH)
+print(f'{min(x1,x2)} {min(y1,y2)} {max(x1,x2)} {max(y1,y2)}')
+")
+            log_info "Reprojected extent: $EXTENT_WEST, $EXTENT_SOUTH, $EXTENT_EAST, $EXTENT_NORTH"
+        fi
+    fi
+
+    # Clamp to raster bounds
+    read -r XMIN YMIN XMAX YMAX < <(python3 -c "
+xmin = max($EXTENT_WEST, $XMIN)
+ymin = max($EXTENT_SOUTH, $YMIN)
+xmax = min($EXTENT_EAST, $XMAX)
+ymax = min($EXTENT_NORTH, $YMAX)
+if xmin >= xmax or ymin >= ymax:
+    import sys
+    print('ERROR: Specified extent does not overlap with the raster bounds', file=sys.stderr)
+    sys.exit(1)
+print(f'{xmin} {ymin} {xmax} {ymax}')
+")
+
+    log_info "Using custom extent: $XMIN, $YMIN, $XMAX, $YMAX"
+fi
 
 # ============== CREATE RGB VRT ==============
 log_info "Creating RGB VRT (selecting bands 1,2,3 only)..."
