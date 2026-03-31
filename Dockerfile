@@ -1,5 +1,5 @@
 # ==============================================================
-# Stage 1: BUILDER — compile GDAL with ECW support
+# Stage 1: BUILDER compile GDAL with ECW support
 # ==============================================================
 FROM debian:12-slim AS builder
 
@@ -58,7 +58,7 @@ RUN wget -q https://github.com/OSGeo/gdal/releases/download/v3.4.1/gdal-3.4.1.ta
     rm -rf /tmp/gdal-3.4.1 /tmp/gdal-3.4.1.tar.gz
 
 # ==============================================================
-# Stage 2: RUNTIME — slim image with only what's needed
+# Stage 2: RUNTIME slim image with only what's needed
 # ==============================================================
 FROM debian:12-slim
 
