@@ -114,10 +114,17 @@ for tool in "$GDALINFO" "$GDAL_TRANSLATE" "$GDALWARP"; do
     [ ! -x "$tool" ] && { log_error "GDAL tool not found: $tool"; exit 1; }
 done
 
-if [ "$TILE_FORMAT" = "PNG" ] && [ ! -x "$NEARBLACK" ]; then
-    log_error "nearblack tool not found: $NEARBLACK"
-    log_error "Install GDAL utils that include nearblack or use -f jpg"
-    exit 1
+# PNG transparency uses nearblack + corner-detected fill color.
+if [ "$TILE_FORMAT" = "PNG" ]; then
+    [ ! -x "$NEARBLACK" ] && {
+        log_error "nearblack tool not found: $NEARBLACK"
+        log_error "Install GDAL utils that include nearblack or use -f jpg"
+        exit 1
+    }
+    python3 -c "import numpy" 2>/dev/null || {
+        log_error "PNG corner detection requires the Python 'numpy' package."
+        exit 1
+    }
 fi
 
 "$GDALINFO" --formats 2>/dev/null | grep -q "ECW" || { log_error "GDAL has no ECW support"; exit 1; }
@@ -219,6 +226,67 @@ log_info "Creating RGB VRT (selecting bands 1,2,3 only)..."
 
 log_info "RGB VRT created: $RGB_VRT"
 
+# ============== DETECT BORDER / FILL COLOR ==============
+# Sample the four raster corners by dumping each as a 1-pixel raw byte
+# raster (EHdr format) and reading the 3 bytes back with numpy. This avoids
+# needing gdallocationinfo (not in the runtime image) and the GDAL Python
+# bindings (also not installed). The detected fill color drives both
+# gdalwarp -srcnodata and the nearblack mode (-white vs -black).
+log_info "Auto-detecting border fill color from raster corners..."
+
+CX_MAX=$((RASTER_WIDTH - 1))
+CY_MAX=$((RASTER_HEIGHT - 1))
+
+sample_corner() {
+    # $1=x $2=y -> echoes "R G B"
+    local x="$1" y="$2"
+    local out="$TEMP_DIR/px_${x}_${y}.bil"
+    "$GDAL_TRANSLATE" -q -srcwin "$x" "$y" 1 1 -of EHdr -ot Byte \
+        -b 1 -b 2 -b 3 "$RGB_VRT" "$out" >/dev/null 2>&1 || { echo ""; return; }
+    python3 -c "
+import numpy as np
+a = np.fromfile('$out', dtype=np.uint8)
+# EHdr with -b 1 -b 2 -b 3 writes 3 bytes (one per band) for a 1x1 raster
+print(' '.join(str(int(v)) for v in a[:3]))
+"
+    rm -f "$out" "${out%.bil}.hdr" "${out%.bil}.prj" "${out%.bil}.aux.xml" 2>/dev/null
+}
+
+CORNER_TL=$(sample_corner 0 0)
+CORNER_TR=$(sample_corner "$CX_MAX" 0)
+CORNER_BL=$(sample_corner 0 "$CY_MAX")
+CORNER_BR=$(sample_corner "$CX_MAX" "$CY_MAX")
+
+if [ -z "$CORNER_TL" ] || [ -z "$CORNER_TR" ] || [ -z "$CORNER_BL" ] || [ -z "$CORNER_BR" ]; then
+    log_error "Failed to sample raster corners via gdal_translate."
+    exit 1
+fi
+
+read -r BG_R BG_G BG_B BG_MODE < <(python3 -c "
+from collections import Counter
+corners = [
+    tuple(int(v) for v in '$CORNER_TL'.split()),
+    tuple(int(v) for v in '$CORNER_TR'.split()),
+    tuple(int(v) for v in '$CORNER_BL'.split()),
+    tuple(int(v) for v in '$CORNER_BR'.split()),
+]
+bg, _ = Counter(corners).most_common(1)[0]
+r, g, b = bg
+lum = 0.299*r + 0.587*g + 0.114*b
+if lum >= 200:
+    mode = 'white'
+elif lum <= 55:
+    mode = 'black'
+else:
+    # Mid-tone fill: nearblack can't target it; fall back to white so we
+    # at least zero alpha for any near-white pixels in the tile.
+    mode = 'white'
+print(f'{r} {g} {b} {mode}')
+")
+
+log_info "Corner samples: TL=($CORNER_TL) TR=($CORNER_TR) BL=($CORNER_BL) BR=($CORNER_BR)"
+log_info ">>> Border fill detected: RGB=($BG_R, $BG_G, $BG_B) -> nearblack mode: -$BG_MODE <<<"
+
 # ============== GENERATE TILES ==============
 log_info "Generating tiles (zoom $MIN_ZOOM to $MAX_ZOOM)..."
 
@@ -245,6 +313,8 @@ gdalwarp = "$GDALWARP"
 nearblack = "$NEARBLACK"
 src_crs = "$CRS_CODE"
 xmin, ymin, xmax, ymax = $XMIN, $YMIN, $XMAX, $YMAX
+bg_r, bg_g, bg_b = $BG_R, $BG_G, $BG_B
+bg_mode = "$BG_MODE"  # 'white' or 'black' - drives nearblack flag
 
 # Web Mercator constants
 ORIGIN_SHIFT = 20037508.342789244
@@ -317,7 +387,7 @@ def generate_tile(task):
         "-ts", str(tile_size), str(tile_size),
         "-r", "cubic",
         "-dstalpha",  # Add alpha channel
-        "-srcnodata", "255 255 255",  # QGIS-like sampled white border color
+        "-srcnodata", f"{bg_r} {bg_g} {bg_b}",  # auto-detected fill color
         "-dstnodata", "0 0 0 0",  # Output nodata as transparent
         "-of", tile_format,
         "-overwrite",
@@ -353,11 +423,13 @@ def generate_tile(task):
             return None
 
         if tile_format == "PNG" and os.path.exists(out_path):
+            # Use nearblack with the auto-detected mode (-white or -black)
+            # to make near-fill pixels transparent within `near_tol`.
             clean_path = out_path + ".clean.png"
             nb_cmd = [
                 nearblack,
                 "-of", "PNG",
-                "-white",
+                f"-{bg_mode}",
                 "-near", str(near_tol),
                 "-setalpha",
                 out_path,
