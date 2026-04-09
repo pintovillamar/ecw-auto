@@ -1,5 +1,6 @@
 services:
   gdal-ecw:
+    # Flask API + conversion worker
     build:
       context: ./gdal-server
       dockerfile: Dockerfile
@@ -15,6 +16,7 @@ services:
       - PYTHONUNBUFFERED=1
 
   tileserver:
+    # TileServer serving MBTiles from shared workspace
     build:
       context: ./tileserver
       dockerfile: Dockerfile

@@ -1,11 +1,11 @@
-# Data files
+# Geospatial data files
 *.mbtiles
 *.tif
 *.tiff
 *.ecw
 *.zip
 
-# Config (auto-generated)
+# Auto-generated config
 *.json
 
 # Python
@@ -14,7 +14,7 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Workspace directories
+# Workspace runtime directories
 workspace/uploads/
 workspace/job_logs/
 workspace/tmp/
