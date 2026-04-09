@@ -1,3 +1,31 @@
+# Data files
 *.mbtiles
+*.tif
+*.tiff
+*.ecw
 *.zip
+
+# Config (auto-generated)
 *.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Workspace directories
+workspace/uploads/
+workspace/job_logs/
+workspace/tmp/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

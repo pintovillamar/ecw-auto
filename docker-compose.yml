@@ -1,14 +1,18 @@
 services:
   gdal-ecw:
     build:
-      context: .
+      context: ./gdal-server
       dockerfile: Dockerfile
     container_name: gdal-ecw
     volumes:
       - ./workspace:/workspace
+    ports:
+      - "5000:5000"
     stdin_open: true
     tty: true
     working_dir: /workspace
+    environment:
+      - PYTHONUNBUFFERED=1
 
   tileserver:
     build:
@@ -18,7 +22,7 @@ services:
     volumes:
       - ./workspace:/data
     ports:
-      - "8080:8080"
+      - "8081:8080"
     depends_on:
       - gdal-ecw
     restart: unless-stopped
