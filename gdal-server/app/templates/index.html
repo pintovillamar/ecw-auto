@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECW Converter</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>ECW Converter</h1>
+      <p>Convert ECW and TIF files to MBTiles</p>
+    </header>
+
+    <form id="uploadForm" enctype="multipart/form-data">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" name="file" id="fileInput" accept=".ecw,.tif,.tiff">
+        <div class="drop-zone-text">
+          <strong>Drop file here</strong>
+          or click to browse
+        </div>
+        <div class="file-name" id="fileName"></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-header" id="optionsHeader">
+          <span>Options</span>
+          <span class="chevron">&#9660;</span>
+        </div>
+        <div class="form-body" id="optionsBody">
+          <div class="form-row">
+            <div class="form-group full">
+              <label for="outputName">Output Name</label>
+              <input type="text" name="output_name" id="outputName" placeholder="output">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="minZoom">Min Zoom</label>
+              <input type="number" name="min_zoom" id="minZoom" value="13" min="0" max="22">
+            </div>
+            <div class="form-group">
+              <label for="maxZoom">Max Zoom</label>
+              <input type="number" name="max_zoom" id="maxZoom" value="19" min="0" max="22">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="format">Tile Format</label>
+              <select name="format" id="format">
+                <option value="png">PNG</option>
+                <option value="jpg">JPEG</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="quality">JPEG Quality</label>
+              <input type="number" name="quality" id="quality" value="85" min="1" max="100">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="processes">Processes</label>
+              <input type="number" name="processes" id="processes" value="4" min="1" max="16">
+            </div>
+            <div class="form-group">
+              <label for="nearTolerance">Near Tolerance</label>
+              <input type="number" name="near_tolerance" id="nearTolerance" value="22" min="0" max="255">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="extentNorth">Extent North</label>
+              <input type="text" name="extent_north" id="extentNorth" placeholder="">
+            </div>
+            <div class="form-group">
+              <label for="extentSouth">Extent South</label>
+              <input type="text" name="extent_south" id="extentSouth" placeholder="">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="extentEast">Extent East</label>
+              <input type="text" name="extent_east" id="extentEast" placeholder="">
+            </div>
+            <div class="form-group">
+              <label for="extentWest">Extent West</label>
+              <input type="text" name="extent_west" id="extentWest" placeholder="">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group full">
+              <label for="extentCrs">Extent CRS</label>
+              <input type="text" name="extent_crs" id="extentCrs" placeholder="EPSG:4326">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn" disabled>Start Conversion</button>
+    </form>
+
+    <section class="job-section" id="jobSection">
+      <div class="job-card">
+        <h3 id="jobTitle">-</h3>
+        <div class="job-meta" id="jobMeta">-</div>
+        <div class="progress-bar">
+          <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        <div class="job-status" id="jobStatus">-</div>
+      </div>
+    </section>
+
+    <section class="logs-section" id="logsSection">
+      <div class="logs-header">Logs</div>
+      <div class="logs-box" id="logsBox"></div>
+    </section>
+
+    <section class="outputs-section">
+      <div class="outputs-header">Outputs</div>
+      <div class="outputs-list" id="outputsList">
+        <div class="empty-state">No outputs yet</div>
+      </div>
+    </section>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
